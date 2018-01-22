@@ -1,14 +1,18 @@
 #coding=utf-8
+import UserProfile as UserProfile
+from django.contrib import messages
+from django.contrib.auth import authenticate
 from django.core.paginator import Paginator
 from django.shortcuts import *
 from django.http import HttpResponse
 from django import forms
-
+from django.contrib.auth import authenticate, login as auth_login ,logout as auth_logout
 # Create your views here.
 from django.template import RequestContext
 from django.template.loader import get_template
+from tornado.platform.twisted import _
 
-from bookapp.forms import BookForm
+from bookapp.forms import *
 from bookapp.models import User
 
 #创建图书
@@ -70,7 +74,7 @@ def manage_book(request):
     try:
         list_items = paginator.page(page)
     except:
-        list_items = pageinator.page(paginator.num_pages)
+        list_items = paginator.page(paginator.num_pages)
 
     t = get_template('bookapp/manage_book.html')
     c = RequestContext(request,locals())
@@ -78,16 +82,16 @@ def manage_book(request):
 
 #图书列表
 def list_book(request):
-    from = LoginForm()
+    form = LoginForm()
     if request.method == 'POST':
-        from = RegisterForm(request.POST.copy())
+        form = RegisterForm(request.POST.copy())
         if form.is_valid():
             if(True == _login(request,form.cleaned_data["username"],form.cleaned_data["password"])):
                 return HttpResponseRedirect('/bookapp/book/list/')
 
     form = RegisterForm()
     if request.method == "POST":
-        form = RegisterForm(rquest.POST.copy())
+        form = RegisterForm(request.POST.copy())
         if form.is_valid():
             email = form.cleaned_data["email"]
             username = form.cleaned_data["username"]
@@ -134,7 +138,7 @@ def list_book(request):
         return HttpResponse(t.render(c))
 
 #查看图片
-def view_book(request,id)
+def view_book(request,id):
     item = Book.objects.get(id=id)
     t = get_template('bookapp/view_book.html')
     c = RequestContext(request,locals())
@@ -195,7 +199,7 @@ def login(request):
         if form.is_valid():
             if(True == _login(request,form.cleaned_data["username"],form.cleaned_data["password"])):
                 return HttpResponseRedirect('/bookapp/book/list/')
-     t = get_template('registration/login.html')
+    t = get_template('registration/login.html')
     c = RequestContext(request,locals())
     return HttpResponse(t.render(c))
 
@@ -206,10 +210,10 @@ def _login(request,username,password):
     if user:
         if user.is_active:
             auth_login(request,user)
-            messages.add_message(request,messsages.INFO, _(u'Activation Success!'))
+            messages.add_message(request,messages.INFO, _(u'Activation Success!'))
             ret = True
         else:
-            message.add_message(request,messages.INFO, _(u'Activation Failed!'))
+            messages.add_message(request,messages.INFO, _(u'Activation Failed!'))
     else:
         messages.add_message(request,messages.INFO,_(u'User not exist!'))
     return ret
@@ -226,82 +230,10 @@ def account_edit(request):
         account_instance = None
     form = AccountForm(request.POST or None,instance = account_instance)
     if form.is_valid():
-        form.save():
+        form.save()
         form = AccountForm()
     t = get_template('registration/account_edit.html')
     c = RequestContext(request,locals())
     return HttpResponse(t.render(c))
 
 
-class UserForm(forms.Form):
-    account = forms.CharField(label='用户名',max_length=50)
-    password = forms.CharField(label='密码',widget=forms.PasswordInput())
-    email = forms.EmailField(label='邮箱')
-
-
-def regist(request):
-    if request.method == 'POST':
-        userform = UserForm(request.POST)
-        if userform.is_valid():
-            account = userform.cleaned_data['account']
-            password = userform.cleaned_data['password']
-            email = userform.cleaned_data['email']
-
-            '''User.objects.create(account=account,password=password,email=email)
-            User.save()'''
-            # 将表单写入数据库
-            user = User()
-            user.account = account
-            user.password = password
-            user.email = email
-            user.save()
-
-            return render_to_response('success.html',{'account':account})
-    else:
-        userform = UserForm()
-    return render_to_response('regist.html',{'userform':userform})
-
-def login(request):
-    if request.method == 'POST':
-        userform = UserForm(request.POST)
-        if userform.is_valid():
-            account = userform.cleaned_data['account']
-            password = userform.cleaned_data['password']
-
-            user = User.objects.filter(account__exact=account,password__exact=password)
-
-            if user:
-                return render_to_response('index.html',{'userform':userform})
-            else:
-                return HttpResponse('用户名或密码错误,请重新输入')
-
-
-    else:
-        userform = UserForm()
-    return render_to_response('login.html',{'userform':userform})
-
-
-def index():
-    return render_to_response('index.html')
-
-
-class Book(models.Model):
-    class Meta:
-        verbose_name = '图书'
-        verbose_name_plural = verbose_name
-
-    isbn = models.CharField('ISBN', max_length=13, unique=True)
-    title = models.CharField('书名', max_length=200)
-    subtitle = models.CharField('副标题', max_length=200, blank=True)
-    pages = models.IntegerField('页数', blank=True)
-    author = models.CharField('作者', max_length=60)
-    translator = models.CharField('译者', max_length=60, blank=True)
-    price = models.CharField('定价', max_length=60, blank=True)
-    publisher = models.CharField('出版社', max_length=200, blank=True)
-    pubdate = models.CharField('出版日期', max_length=60, blank=True)
-    cover_img = models.URLField('封面图', blank=True)
-    summary = models.TextField('内容简介', blank=True, max_length=2000)
-    author_intro = models.TextField('作者简介', blank=True, max_length=2000)
-
-    def __unicode__(self):
-        return str(self.title)
